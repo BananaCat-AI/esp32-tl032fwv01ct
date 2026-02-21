@@ -1,0 +1,48 @@
+---
+description: CircuitPython coding conventions for ESP32-S3 display scripts
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# CircuitPython Conventions
+
+## Runtime Environment
+
+Code runs on CircuitPython (not CPython). Key constraints:
+- Limited RAM — avoid large allocations; prefer small bitmaps and streaming
+- No pip/venv — libraries are built into the firmware or copied to `CIRCUITPY/lib/`
+- Entry point is `code.py` on the CIRCUITPY drive; auto-reloads on save
+
+## Core Libraries
+
+| Module | Purpose |
+|--------|---------|
+| `board` | Pin definitions for Adafruit Qualia S3 (includes `TFT_PINS`, `TFT_IO_EXPANDER`) |
+| `busio` | I2C bus access (`busio.I2C`) |
+| `displayio` | Bitmap, TileGrid, Group, ColorConverter abstractions |
+| `framebufferio` | `FramebufferDisplay` for DotClock-backed displays |
+| `dotclockframebuffer` | Parallel RGB TTL framebuffer and `ioexpander_send_init_sequence` |
+| `microcontroller` | Low-level pin access for debugging |
+
+## Display Initialization Pattern
+
+```python
+from displayio import release_displays
+release_displays()  # always call first
+
+i2c = busio.I2C(board.SCL, board.SDA, frequency=400_000)
+tft_io_expander = dict(board.TFT_IO_EXPANDER)
+dotclockframebuffer.ioexpander_send_init_sequence(i2c, init_sequence, **tft_io_expander)
+i2c.deinit()
+
+fb = dotclockframebuffer.DotClockFramebuffer(**dict(board.TFT_PINS), **tft_timings)
+display = FramebufferDisplay(fb, auto_refresh=False)
+```
+
+## Guidelines
+
+- Always call `release_displays()` before creating a new display
+- Deinit I2C after sending the init sequence (the display uses parallel RGB after init)
+- Use `auto_refresh=False` during bitmap writes, then set `True` to flush
+- Color format is RGB565 (16-bit) for bitmap pixel values
+- Rev B boards use IO expander address `0x38`; Rev A uses the default from `board.TFT_IO_EXPANDER`

@@ -1,6 +1,7 @@
 from displayio import release_displays
 release_displays()
 
+import gc
 import random
 import displayio
 import time
@@ -8,6 +9,15 @@ import busio
 import board
 import dotclockframebuffer
 from framebufferio import FramebufferDisplay
+
+DISPLAY_WIDTH = 320
+DISPLAY_HEIGHT = 820
+
+print("=" * 40)
+print("TL032FWV01CT Rainbow Display")
+print("=" * 40)
+print(f"Target resolution: {DISPLAY_WIDTH}x{DISPLAY_HEIGHT}")
+print(f"Free memory at start: {gc.mem_free()} bytes")
 
 init_sequence_tl032 = bytes((
     b'\x11\x80d'
@@ -60,73 +70,111 @@ init_sequence_tl032 = bytes((
     b')\x80x'
 ))
 
+print("[1/5] Sending init sequence over I2C...")
 board.I2C().deinit()
 i2c = busio.I2C(board.SCL, board.SDA, frequency=400_000)
 tft_io_expander = dict(board.TFT_IO_EXPANDER)
 #tft_io_expander['i2c_address'] = 0x38 # uncomment for rev B
 dotclockframebuffer.ioexpander_send_init_sequence(i2c, init_sequence_tl032, **tft_io_expander)
 i2c.deinit()
+print("       Init sequence sent OK")
 
 tft_pins = dict(board.TFT_PINS)
 
 tft_timings = {
     "frequency": 16000000,
-    "width": 320,
-    "height": 820,
-
+    "width": DISPLAY_WIDTH,
+    "height": DISPLAY_HEIGHT,
     "hsync_pulse_width": 3,
     "hsync_back_porch": 251,
     "hsync_front_porch": 150,
     "hsync_idle_low": False,
-
     "vsync_pulse_width": 6,
     "vsync_back_porch": 90,
     "vsync_front_porch": 100,
     "vsync_idle_low": False,
-
     "pclk_active_high": False,
     "pclk_idle_high": False,
     "de_idle_high": False,
 }
 
-#bitmap = displayio.OnDiskBitmap("/display-ruler-720p.bmp")
-
-bitmap = displayio.Bitmap(256, 7*64, 65535)
+print("[2/5] Creating framebuffer and display...")
+print(f"       Free memory before FB: {gc.mem_free()} bytes")
 fb = dotclockframebuffer.DotClockFramebuffer(**tft_pins, **tft_timings)
 display = FramebufferDisplay(fb, auto_refresh=False)
+print(f"       Display created: {display.width}x{display.height}")
+print(f"       Free memory after FB: {gc.mem_free()} bytes")
 
-# Create a TileGrid to hold the bitmap
-tile_grid = displayio.TileGrid(bitmap, pixel_shader=displayio.ColorConverter(input_colorspace=displayio.Colorspace.RGB565))
+print("[3/5] Allocating full-screen bitmap...")
+bitmap = displayio.Bitmap(DISPLAY_WIDTH, DISPLAY_HEIGHT, 65535)
+print(f"       Bitmap: {bitmap.width}x{bitmap.height}")
+print(f"       Free memory after bitmap: {gc.mem_free()} bytes")
 
-# Create a Group to hold the TileGrid
+tile_grid = displayio.TileGrid(
+    bitmap,
+    pixel_shader=displayio.ColorConverter(input_colorspace=displayio.Colorspace.RGB565),
+)
 group = displayio.Group()
-
-# Add the TileGrid to the Group
 group.append(tile_grid)
-
-# Add the Group to the Display
 display.root_group = group
 
+print("[4/5] Drawing rainbow bands...")
+t_start = time.monotonic()
+
+BAND_NAMES = ["Blue", "Cyan", "Green", "Yellow", "Red", "Magenta", "White"]
+band_height = DISPLAY_HEIGHT // 7
+
+for x in range(DISPLAY_WIDTH):
+    intensity = x * 255 // (DISPLAY_WIDTH - 1)
+    b = (intensity >> 3)
+    g = (intensity >> 2) << 5
+    r = (intensity >> 3) << 11
+
+    for band in range(7):
+        y_start = band * band_height
+        y_end = (band + 1) * band_height if band < 6 else DISPLAY_HEIGHT
+
+        if band == 0:
+            color = b
+        elif band == 1:
+            color = b | g
+        elif band == 2:
+            color = g
+        elif band == 3:
+            color = g | r
+        elif band == 4:
+            color = r
+        elif band == 5:
+            color = r | b
+        else:
+            color = r | g | b
+
+        for y in range(y_start, y_end):
+            bitmap[x, y] = color
+
+t_draw = time.monotonic() - t_start
+print(f"       Drawing took {t_draw:.1f}s")
+for i, name in enumerate(BAND_NAMES):
+    y0 = i * band_height
+    y1 = (i + 1) * band_height if i < 6 else DISPLAY_HEIGHT
+    print(f"       Band {i}: {name} (rows {y0}-{y1})")
+
 display.auto_refresh = True
+print(f"       Free memory after draw: {gc.mem_free()} bytes")
 
-for i in range(256):
-    b = i >> 3
-    g = (i >> 2) << 5
-    r = b << 11
-    for j in range(64):
-        bitmap[i, j] = b
-        bitmap[i, j+64] = b|g
-        bitmap[i, j+128] = g
-        bitmap[i, j+192] = g|r
-        bitmap[i, j+256] = r
-        bitmap[i, j+320] = r|b
-        bitmap[i, j+384] = r|g|b
+print("[5/5] Running animation loop")
+print("       Shifting position randomly every 2s")
+print("-" * 40)
 
-# Loop forever so you can enjoy your image
+frame = 0
 while True:
-    time.sleep(1)
+    time.sleep(2)
     display.auto_refresh = False
-    group.x = random.randint(0, 32)
-    group.y = random.randint(0, 32)
+    new_x = random.randint(-16, 16)
+    new_y = random.randint(-16, 16)
+    group.x = new_x
+    group.y = new_y
     display.auto_refresh = True
-    pass
+    frame += 1
+    if frame % 5 == 0:
+        print(f"[frame {frame}] pos=({new_x},{new_y}) mem={gc.mem_free()}")

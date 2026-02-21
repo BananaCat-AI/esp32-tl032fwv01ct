@@ -1,0 +1,50 @@
+---
+description: TL032FWV01CT display hardware specs and timing parameters
+globs: "tl032fwv01ct/**"
+alwaysApply: false
+---
+
+# TL032FWV01CT Display Hardware
+
+## Display Specifications
+
+- **Panel**: TL032FWV01CT-I1440A, 3.2" diagonal
+- **Resolution**: 320 x 820 pixels
+- **Color interface**: RGB666 (18-bit parallel TTL)
+- **Driver IC**: ST7701S
+- **Connector**: 40-pin, 0.5 mm pitch FPC
+- **Touch**: Capacitive (CT variant), I2C at `0x3f`
+
+## Timing Parameters
+
+```python
+tft_timings = {
+    "frequency": 16_000_000,     # 16 MHz pixel clock
+    "width": 320,
+    "height": 820,
+    "hsync_pulse_width": 3,
+    "hsync_back_porch": 251,
+    "hsync_front_porch": 150,
+    "hsync_idle_low": False,
+    "vsync_pulse_width": 6,
+    "vsync_back_porch": 90,
+    "vsync_front_porch": 100,
+    "vsync_idle_low": False,
+    "pclk_active_high": False,
+    "pclk_idle_high": False,
+    "de_idle_high": False,
+}
+```
+
+## Init Sequence
+
+The `init_sequence_tl032` byte string contains ST7701S register commands sent via I2C through the board's IO expander. The sequence configures:
+- Sleep out and display on
+- Page select registers (`0xFF` commands)
+- Gamma curves (`0xB0`, `0xB1`)
+- Power control (`0xB5`, `0xB7`, `0xB8`)
+- Memory access control (`0x36` — rotation/mirror)
+- Color format (`0x3A` = `0x66` for RGB666)
+- GIP timing/mapping (`0xE0`–`0xEF`)
+
+Modifying the init sequence requires understanding the ST7701S datasheet. Changes affect voltage levels, gamma response, and signal timing.
