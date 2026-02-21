@@ -13,7 +13,9 @@ alwaysApply: false
 - **Color interface**: RGB666 (18-bit parallel TTL)
 - **Driver IC**: ST7701S
 - **Connector**: 40-pin, 0.5 mm pitch FPC
-- **Touch**: Capacitive (CT variant), I2C at `0x3f`
+- **Touch**: Capacitive (CT variant), FocalTech FT6x36 at I2C `0x38`
+- **Touch range**: x: 0-320, y: 0-820 (matches display resolution)
+- **Touch library**: `adafruit_focaltouch` (requires `adafruit_bus_device`)
 
 ## Timing Parameters
 

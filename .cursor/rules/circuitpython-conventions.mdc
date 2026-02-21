@@ -22,6 +22,7 @@ Code runs on CircuitPython (not CPython). Key constraints:
 | `displayio` | Bitmap, TileGrid, Group, ColorConverter abstractions |
 | `framebufferio` | `FramebufferDisplay` for DotClock-backed displays |
 | `dotclockframebuffer` | Parallel RGB TTL framebuffer and `ioexpander_send_init_sequence` |
+| `adafruit_focaltouch` | FocalTech FT6x36 capacitive touch driver (in `lib/`) |
 | `microcontroller` | Low-level pin access for debugging |
 
 ## Display Initialization Pattern
@@ -45,4 +46,5 @@ display = FramebufferDisplay(fb, auto_refresh=False)
 - Deinit I2C after sending the init sequence (the display uses parallel RGB after init)
 - Use `auto_refresh=False` during bitmap writes, then set `True` to flush
 - Color format is RGB565 (16-bit) for bitmap pixel values
-- Rev B boards use IO expander address `0x38`; Rev A uses the default from `board.TFT_IO_EXPANDER`
+- Rev A IO expander is at `0x3f` (default from `board.TFT_IO_EXPANDER`); Rev B uses `0x38`
+- Touch controller (FocalTech) is at `0x38` — address conflict possible on Rev B hardware

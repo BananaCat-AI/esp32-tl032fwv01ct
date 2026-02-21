@@ -8,7 +8,7 @@ while i2c.try_lock():
 address = i2c.scan()
 for name in address:
     print(hex(name))
-# Expander 0x38
-# Touch Controller 0x3f
+# Touch Controller 0x38 (FocalTech FT6x36, use adafruit_focaltouch)
+# IO Expander 0x3f (display init, Rev A default address)
 
 
