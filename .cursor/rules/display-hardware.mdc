@@ -1,0 +1,73 @@
+---
+description: TL032FWV01CT display hardware specs, timing, and touch
+globs: "tl032fwv01ct/**,buddy/**"
+alwaysApply: false
+---
+
+# TL032FWV01CT Display Hardware
+
+## Display Specifications
+
+- **Panel**: TL032FWV01CT-I1440A, 3.2" diagonal
+- **Resolution**: 320 x 820 pixels (physical), supports rotation for landscape (820x320)
+- **Color interface**: RGB666 (18-bit parallel TTL)
+- **Driver IC**: ST7701S
+- **Connector**: 40-pin, 0.5 mm pitch FPC
+
+## Touch Controller
+
+- **IC**: FocalTech FT6x36
+- **I2C address**: `0x38`
+- **Library**: `adafruit_focaltouch` (requires `adafruit_bus_device`)
+- **Physical touch range**: x: 0-320, y: 0-820
+- **Rotation mapping**: When display uses `rotation=90` (landscape 820x320), convert physical touch `(tx, ty)` to logical `(ty, H-1-tx)` where H is logical height (320)
+- **Debounce**: Touch fires continuously while held; add a cooldown timer (~0.5s) to prevent duplicates
+
+## Display Rotation
+
+`FramebufferDisplay(fb, rotation=90)` rotates to landscape:
+- Physical 320x820 → Logical 820x320
+- `display.width` = 820, `display.height` = 320
+- Bitmaps and Groups use logical coordinates; displayio handles the transform
+
+## Timing Parameters
+
+```python
+tft_timings = {
+    "frequency": 16_000_000,     # 16 MHz pixel clock
+    "width": 320,
+    "height": 820,
+    "hsync_pulse_width": 3,
+    "hsync_back_porch": 251,
+    "hsync_front_porch": 150,
+    "hsync_idle_low": False,
+    "vsync_pulse_width": 6,
+    "vsync_back_porch": 90,
+    "vsync_front_porch": 100,
+    "vsync_idle_low": False,
+    "pclk_active_high": False,
+    "pclk_idle_high": False,
+    "de_idle_high": False,
+}
+```
+
+## Init Sequence
+
+The `init_sequence_tl032` byte string contains ST7701S register commands sent via I2C through the board's IO expander. The sequence configures:
+- Sleep out and display on
+- Page select registers (`0xFF` commands)
+- Gamma curves (`0xB0`, `0xB1`)
+- Power control (`0xB5`, `0xB7`, `0xB8`)
+- Memory access control (`0x36` — rotation/mirror)
+- Color format (`0x3A` = `0x66` for RGB666)
+- GIP timing/mapping (`0xE0`–`0xEF`)
+
+Modifying the init sequence requires understanding the ST7701S datasheet.
+
+## Performance Benchmarks
+
+- `bitmaptools.fill_region()`: 0.076s for full screen (7 solid bands) — **46x faster** than pixel-by-pixel
+- `bitmaptools.fill_region()`: 0.080s for gradient (448 calls) — **43x faster**
+- Pixel-by-pixel `bitmap[x,y]`: 3.5s for full 320x820 screen
+- Frame rate with displayio scene: ~32 FPS achieved
+- Framebuffer allocation: ~524 KB (320x820x2 bytes)

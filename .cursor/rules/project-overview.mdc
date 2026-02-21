@@ -1,0 +1,42 @@
+---
+description: Project overview and architecture for the ESP32-S3 TL032FWV01CT display driver
+alwaysApply: true
+---
+
+# Project Overview
+
+CircuitPython project that drives a **TL032FWV01CT** 3.2" RGB-666 TTL TFT display (320x820, ST7701S driver) using an **Adafruit Qualia ESP32-S3 RGB666 40p TFT** board.
+
+## Repository Structure
+
+- `tl032fwv01ct/` — Display driver code (init sequence, timings, rainbow demo, benchmark)
+- `buddy/` — Interactive display projects (e.g., scuba diver game)
+- `utils/` — Hardware debugging utilities (pin mapping, I2C scanning, touch test)
+- `learning/` — Setup documentation (board selection, serial connection via `tio`)
+
+## Hardware Stack
+
+- **MCU**: ESP32-S3 (Adafruit Qualia S3 RGB666, board ID `adafruit_qualia_s3_rgb666`)
+- **Firmware**: CircuitPython 9.2.0
+- **Display**: TL032FWV01CT-I1440A, 320x820px, RGB666 TTL parallel interface, 40-pin connector
+- **Display driver IC**: ST7701S (initialized over I2C via IO expander)
+- **Touch**: FocalTech FT6x36 capacitive touch at I2C `0x38`
+- **IO expander**: I2C `0x3f` (Rev A default)
+- **Interface**: DotClock parallel RGB (HSYNC, VSYNC, DE, PCLK, DB0–DB17)
+- **Memory**: ~8 MB PSRAM, ~7.4 MB free after framebuffer
+
+## How It Works
+
+1. Display init commands are sent over I2C through the board's IO expander
+2. A `DotClockFramebuffer` is created with the display's timing parameters
+3. `FramebufferDisplay` wraps the framebuffer for use with `displayio`
+4. Bitmaps are drawn to screen via `displayio.TileGrid` and `displayio.Group`
+5. Touch input is read via `adafruit_focaltouch` on a separate I2C init
+
+## Deployment
+
+Copy `.py` files to the `CIRCUITPY` USB drive. The entry point is `code.py`. Additional modules are imported from the CIRCUITPY root. Use `tio /dev/tty.usbmodem*` for serial REPL and live reload. Libraries go in `CIRCUITPY/lib/`.
+
+## License
+
+GNU GPL v3
