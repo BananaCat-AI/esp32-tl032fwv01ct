@@ -48,22 +48,26 @@ Each milestone is a self-contained session that produces a working result on the
 - [x] Renders in ~0.075s
 
 ### Milestone 2 — Scuba diver sprite
-**Status**: In progress  
+**Status**: Complete  
 **Deliverable**: Diver character visible on the ocean background.
 
 - [x] Create `diver.py` — `create_diver()` returns a scaled Group
-- [x] 19x19 pixel art with 9-color palette (wetsuit, skin, mask, tank, flippers, bubbles)
+- [x] 24x9 horizontal pixel art with 9-color palette (wetsuit, skin, mask, tank, flippers, bubbles)
 - [x] Transparent background via `Palette.make_transparent()`
-- [x] 4x scale → 76x76 pixels on screen
-- [ ] Verify diver is visible and recognizable on display
+- [x] 4x scale → 96x36 pixels on screen
+- [x] Redesigned as horizontal swimmer (head right, flippers left, tank on back)
+- [x] Verified visible and recognizable on display
 
 ### Milestone 3 — Swimming animation
-**Goal**: The diver moves smoothly across the screen.  
-**Estimated time**: ~15 min  
+**Status**: Complete  
+**Deliverable**: Diver swims naturally across the screen with random variation.
 
-- [ ] Implement swim path (sine wave horizontal + slow vertical drift)
-- [ ] Game loop with frame timing (~15-20 FPS target)
-- [ ] Print frame rate to serial periodically
+- [x] Game loop with delta-time frame timing (~32 FPS achieved)
+- [x] Always swims left-to-right, wraps around when off-screen
+- [x] Random depth drift: ±30px from current position every 3-8 seconds, smooth interpolation
+- [x] Variable horizontal speed: 30-100 px/s, changes every 3-7 seconds
+- [x] Serial output: frame count, speed, target depth, position, memory
+- [x] Note: CircuitPython f-strings don't support ternary expressions or line continuation
 
 ### Milestone 4 — Touch detection
 **Goal**: Touching the diver triggers a response.  
