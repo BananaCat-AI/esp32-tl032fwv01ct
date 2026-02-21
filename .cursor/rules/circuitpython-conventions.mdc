@@ -8,22 +8,26 @@ alwaysApply: false
 
 ## Runtime Environment
 
-Code runs on CircuitPython (not CPython). Key constraints:
-- Limited RAM — avoid large allocations; prefer small bitmaps and streaming
+Code runs on CircuitPython 9.2.0 (not CPython). Key constraints:
+- ~8 MB PSRAM available; ~7.4 MB free after framebuffer
 - No pip/venv — libraries are built into the firmware or copied to `CIRCUITPY/lib/`
-- Entry point is `code.py` on the CIRCUITPY drive; auto-reloads on save
+- Entry point is `code.py` on the CIRCUITPY drive; auto-reloads on file save
+- Multi-file projects: put modules in CIRCUITPY root, import normally
+- Use `tio /dev/tty.usbmodem*` for serial console (not Cursor integrated terminal)
 
 ## Core Libraries
 
 | Module | Purpose |
 |--------|---------|
-| `board` | Pin definitions for Adafruit Qualia S3 (includes `TFT_PINS`, `TFT_IO_EXPANDER`) |
+| `board` | Pin definitions for Qualia S3 (`TFT_PINS`, `TFT_IO_EXPANDER`, `SCL`, `SDA`) |
 | `busio` | I2C bus access (`busio.I2C`) |
-| `displayio` | Bitmap, TileGrid, Group, ColorConverter abstractions |
+| `displayio` | Bitmap, TileGrid, Group, Palette, ColorConverter |
+| `bitmaptools` | Fast C-level `fill_region()`, `draw_line()` — always prefer over pixel loops |
 | `framebufferio` | `FramebufferDisplay` for DotClock-backed displays |
 | `dotclockframebuffer` | Parallel RGB TTL framebuffer and `ioexpander_send_init_sequence` |
-| `adafruit_focaltouch` | FocalTech FT6x36 capacitive touch driver (in `lib/`) |
-| `microcontroller` | Low-level pin access for debugging |
+| `adafruit_focaltouch` | FocalTech FT6x36 touch driver (in `lib/`, address `0x38`) |
+| `adafruit_display_text` | Text labels via `label.Label` with `terminalio.FONT` |
+| `terminalio` | Built-in font, no extra files needed |
 
 ## Display Initialization Pattern
 
@@ -34,17 +38,41 @@ release_displays()  # always call first
 i2c = busio.I2C(board.SCL, board.SDA, frequency=400_000)
 tft_io_expander = dict(board.TFT_IO_EXPANDER)
 dotclockframebuffer.ioexpander_send_init_sequence(i2c, init_sequence, **tft_io_expander)
-i2c.deinit()
+i2c.deinit()  # deinit after init sequence
 
 fb = dotclockframebuffer.DotClockFramebuffer(**dict(board.TFT_PINS), **tft_timings)
-display = FramebufferDisplay(fb, auto_refresh=False)
+display = FramebufferDisplay(fb, auto_refresh=False, rotation=90)  # landscape
 ```
 
-## Guidelines
+## Touch Initialization (after display)
 
-- Always call `release_displays()` before creating a new display
-- Deinit I2C after sending the init sequence (the display uses parallel RGB after init)
-- Use `auto_refresh=False` during bitmap writes, then set `True` to flush
-- Color format is RGB565 (16-bit) for bitmap pixel values
-- Rev A IO expander is at `0x3f` (default from `board.TFT_IO_EXPANDER`); Rev B uses `0x38`
-- Touch controller (FocalTech) is at `0x38` — address conflict possible on Rev B hardware
+```python
+i2c = busio.I2C(board.SCL, board.SDA, frequency=400_000)
+touch = adafruit_focaltouch.Adafruit_FocalTouch(i2c, address=0x38)
+# Do NOT deinit i2c — touch needs it continuously
+```
+
+## Syntax Limitations
+
+- f-strings do not support ternary expressions: `f"{x if y else z}"` causes SyntaxError
+- f-string line continuation with `f"..." f"..."` on separate lines is not supported
+- Workaround: compute values into variables before the f-string
+
+## Performance Guidelines
+
+- Always use `bitmaptools.fill_region()` for rectangles — 43-46x faster than pixel loops
+- Use `displayio.Palette` + palette indices instead of `ColorConverter` + raw RGB565
+- `Palette.make_transparent(index)` enables sprite transparency over backgrounds
+- `displayio.Group(scale=N)` scales sprites without redraw cost
+- Moving `Group.x`/`Group.y` or `TileGrid.x`/`TileGrid.y` is instant (no redraw)
+- `TileGrid.flip_x` mirrors sprites without redraw
+- Target ~30ms sleep for ~32 FPS game loops
+- Use `auto_refresh=False` during batch bitmap writes, then `True` to flush
+
+## Deployment
+
+- `circup install <library>` to install libs to board (requires `pipx install circup`)
+- `circup` needs `~/.local/bin` on PATH
+- Copy `.py` modules to CIRCUITPY root for imports
+- Writing to CIRCUITPY triggers auto-reload; `tio` may disconnect briefly during writes
+- Rev A IO expander at `0x3f` (default); Rev B at `0x38` (conflicts with touch)

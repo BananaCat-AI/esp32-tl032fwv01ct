@@ -1,6 +1,6 @@
 ---
-description: TL032FWV01CT display hardware specs and timing parameters
-globs: "tl032fwv01ct/**"
+description: TL032FWV01CT display hardware specs, timing, and touch
+globs: "tl032fwv01ct/**,buddy/**"
 alwaysApply: false
 ---
 
@@ -9,13 +9,26 @@ alwaysApply: false
 ## Display Specifications
 
 - **Panel**: TL032FWV01CT-I1440A, 3.2" diagonal
-- **Resolution**: 320 x 820 pixels
+- **Resolution**: 320 x 820 pixels (physical), supports rotation for landscape (820x320)
 - **Color interface**: RGB666 (18-bit parallel TTL)
 - **Driver IC**: ST7701S
 - **Connector**: 40-pin, 0.5 mm pitch FPC
-- **Touch**: Capacitive (CT variant), FocalTech FT6x36 at I2C `0x38`
-- **Touch range**: x: 0-320, y: 0-820 (matches display resolution)
-- **Touch library**: `adafruit_focaltouch` (requires `adafruit_bus_device`)
+
+## Touch Controller
+
+- **IC**: FocalTech FT6x36
+- **I2C address**: `0x38`
+- **Library**: `adafruit_focaltouch` (requires `adafruit_bus_device`)
+- **Physical touch range**: x: 0-320, y: 0-820
+- **Rotation mapping**: When display uses `rotation=90` (landscape 820x320), convert physical touch `(tx, ty)` to logical `(ty, H-1-tx)` where H is logical height (320)
+- **Debounce**: Touch fires continuously while held; add a cooldown timer (~0.5s) to prevent duplicates
+
+## Display Rotation
+
+`FramebufferDisplay(fb, rotation=90)` rotates to landscape:
+- Physical 320x820 → Logical 820x320
+- `display.width` = 820, `display.height` = 320
+- Bitmaps and Groups use logical coordinates; displayio handles the transform
 
 ## Timing Parameters
 
@@ -49,4 +62,12 @@ The `init_sequence_tl032` byte string contains ST7701S register commands sent vi
 - Color format (`0x3A` = `0x66` for RGB666)
 - GIP timing/mapping (`0xE0`–`0xEF`)
 
-Modifying the init sequence requires understanding the ST7701S datasheet. Changes affect voltage levels, gamma response, and signal timing.
+Modifying the init sequence requires understanding the ST7701S datasheet.
+
+## Performance Benchmarks
+
+- `bitmaptools.fill_region()`: 0.076s for full screen (7 solid bands) — **46x faster** than pixel-by-pixel
+- `bitmaptools.fill_region()`: 0.080s for gradient (448 calls) — **43x faster**
+- Pixel-by-pixel `bitmap[x,y]`: 3.5s for full 320x820 screen
+- Frame rate with displayio scene: ~32 FPS achieved
+- Framebuffer allocation: ~524 KB (320x820x2 bytes)
