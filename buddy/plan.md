@@ -70,22 +70,25 @@ Each milestone is a self-contained session that produces a working result on the
 - [x] Note: CircuitPython f-strings don't support ternary expressions or line continuation
 
 ### Milestone 4 — Touch detection
-**Goal**: Touching the diver triggers a response.  
-**Estimated time**: ~15 min  
+**Status**: Complete  
+**Deliverable**: Touch the diver = "HIT" in serial, miss = "miss".
 
-- [ ] Install `adafruit_display_text` on the board
-- [ ] Init FocalTech touch controller alongside display
-- [ ] Check touch events each frame
-- [ ] Hit detection: touch inside diver bounding box → print "HIT" to serial
-- [ ] Note: touch coordinates may need rotation mapping (physical vs logical)
+- [x] Installed `adafruit_display_text`, `adafruit_bitmap_font`, `adafruit_ticks` on board
+- [x] Init FocalTech at `0x38` alongside display (shared I2C bus)
+- [x] Touch coordinate rotation: physical (320x820) → logical (820x320) via `(ty, H-1-tx)`
+- [x] Hit detection with 20px padding around diver bounding box
+- [x] Note: touch fires multiple times while held — needs debounce in Milestone 5
 
 ### Milestone 5 — Fish names on screen
-**Goal**: Complete game — touch the diver, see a fish name.  
-**Estimated time**: ~15 min  
+**Status**: Complete  
+**Deliverable**: Full interactive game — touch the diver, fish name appears on display.
 
-- [ ] Add list of ~20 fish names
-- [ ] On hit: pick random name, render as `Label` near touch point
-- [ ] Auto-hide label after ~2 seconds
+- [x] 20 fish names (Clownfish, Manta Ray, Hammerhead, Octopus, etc.)
+- [x] On hit: random fish name rendered as `Label` (white, 3x scale) above diver
+- [x] Label auto-hides after 2 seconds
+- [x] 0.5s touch debounce prevents duplicate triggers from held finger
+- [x] Score counter tracked in serial output
+- [x] Uses `terminalio.FONT` (built-in, no extra font files needed)
 
 ### Milestone 6 — Polish (optional)
 **Goal**: Visual and gameplay improvements.  
@@ -105,7 +108,9 @@ Each milestone is a self-contained session that produces a working result on the
 |---------|--------|---------|
 | `adafruit_focaltouch` | Installed | Touch input at `0x38` |
 | `adafruit_bus_device` | Installed | I2C dependency |
-| `adafruit_display_text` | Install at Milestone 4 | Fish name labels |
+| `adafruit_display_text` | Installed | Fish name labels |
+| `adafruit_bitmap_font` | Installed | Dependency for display_text |
+| `adafruit_ticks` | Installed | Dependency for display_text |
 
 ## Hardware Reference
 
